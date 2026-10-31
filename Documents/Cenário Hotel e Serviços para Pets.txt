@@ -1,0 +1,54 @@
+Cenário: Hotel e Serviços para Pets
+
+O sistema será desenvolvido para gerenciar um hotel que oferece serviços adicionais para animais de estimação, responsável por hospedar pets por períodos determinados e oferecer serviços adicionais, como alimentação personalizada, banho, passeios, administração de medicamentos e acompanhamento veterinário.
+
+Entidades principais
+
+1. Tutor — responsável pelo animal.
+2. Pet — animal que utiliza os serviços e hóspede.
+3. Espécie — cachorro, gato etc.
+4. Reserva — registra o período da hospedagem ou creche.
+5. Acomodação/Quarto — espaço onde o animal ficará hospedado.
+6. Funcionário — pessoas que trabalham no estabelecimento.
+7. Serviço — banho, passeio, recreação, transporte etc.
+8. Serviço_Reserva — relaciona os serviços contratados em cada reserva.
+9. Medicamento — medicamentos utilizados pelos animais.
+10. Medicação_Pet — registra medicamento, dose e horários de um pet.
+11. Atividade — atividades realizadas durante a estadia.
+12. Pagamento — pagamentos referentes às reservas.
+13. Caderneta — vacinas, medicamentos, restrições do pet e observações ao longo da estadia. 
+
+Stakeholders
+
+1. Tutores dos pets — fazem reservas, fornecem informações dos animais e realizam pagamentos.
+2. Funcionários/cuidadores — acompanham os animais durante a estadia.
+3. Veterinários — acompanham questões de saúde e medicamentos.
+4. Gerente/administrador — gerencia funcionários, acomodações, serviços e reservas.
+5. Recepcionistas — realizam cadastros, check-in e check-out.
+
+Regras de negócio
+
+1. Todo pet deve estar associado a pelo menos um tutor.
+2. Um tutor pode cadastrar vários pets.
+3. Cada pet deve possuir uma espécie cadastrada.
+4. Um pet pode possuir uma raça cadastrada.
+5. Uma reserva deve estar associada a um pet.
+6. Um pet pode possuir várias reservas ao longo do tempo.
+7. Toda reserva deve possuir uma data de entrada e uma data prevista de saída.
+8. A data de saída não pode ser anterior à data de entrada.
+9. Uma acomodação não pode receber duas reservas incompatíveis no mesmo período, respeitando sua capacidade máxima.
+10. Cada acomodação deve possuir uma capacidade máxima de animais.
+11. O pet deve possuir as vacinas obrigatórias válidas para poder utilizar o serviço de hospedagem.
+12. Medicamentos só podem ser administrados caso estejam previamente cadastrados para o pet.
+13. O registro de medicação deve informar dose e frequência de administração.
+14. Um pet pode possuir restrições alimentares cadastradas.
+15. Uma reserva pode contratar vários serviços adicionais.
+16. Um mesmo serviço pode ser contratado em várias reservas.
+17. Cada serviço realizado durante a hospedagem deve possuir um funcionário responsável.
+18. Todo pagamento deve estar associado a uma reserva.
+19. Uma reserva pode possuir mais de um pagamento.
+20. O valor total da reserva deve considerar a hospedagem e os serviços adicionais contratados.
+21. Atividades realizadas com o animal devem possuir data e funcionário responsável.
+22. O check-out só pode ser realizado após o registro do check-in.
+23. Reservas canceladas não podem gerar novos serviços.
+24. O sistema deve registrar ocorrências relevantes durante a hospedagem, como alterações de comportamento ou problemas de saúde.
