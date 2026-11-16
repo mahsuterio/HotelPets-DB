@@ -65,9 +65,9 @@ INSERT INTO pet (id_pet, id_especie, id_raca, nome, nascimento) VALUES
 (9, 1, 6, 'Bento', '2022-09-14'),
 (10, 3, 11, 'Pipoca', '2024-03-03'),
 (11, 1, 2, 'Nina', '2021-12-09'),
-(12, 2, 1, 'Oliver', '2023-05-17'),
+(12, 2, 7, 'Oliver', '2023-05-17'),
 (13, 1, 3, 'Toby', '2020-10-25'),
-(14, 3, 12, 'Floquinho', '2024-01-11'),
+(14, 3, 11, 'Floquinho', '2024-01-11'),
 (15, 1, 1, 'Amora', '2022-06-28');
 
 INSERT INTO tutor_pet (id_tutor, id_pet, responsavel_principal) VALUES
