@@ -40,7 +40,7 @@ CREATE TABLE pet (
         REFERENCES raca(id_raca, id_especie) ON DELETE RESTRICT
 );
 
--- Idade nao e armazenada: muda com o tempo. Consultar vw_pet_idade.
+-- calcula a idade do pet para estar disponivel para consulta
 CREATE VIEW vw_pet_idade AS
 SELECT p.*,
        CASE WHEN p.nascimento IS NULL THEN NULL ELSE
@@ -57,8 +57,7 @@ CREATE TABLE tutor_pet (
     PRIMARY KEY (id_tutor, id_pet)
 );
 
--- Indice unico parcial: um pet pode ter NO MAXIMO um tutor principal.
--- Outros tutores (responsavel_principal=0) continuam permitidos.
+-- o pet so pode ter um unico responsavel principal
 CREATE UNIQUE INDEX uq_um_tutor_principal_por_pet
 ON tutor_pet(id_pet) WHERE responsavel_principal = 1;
 
@@ -152,8 +151,8 @@ CREATE TABLE reserva (
     valor_diaria_contratada NUMERIC NOT NULL CHECK (valor_diaria_contratada >= 0),
     CHECK (checkout_em IS NULL OR
         (checkin_em IS NOT NULL AND datetime(checkout_em) >= datetime(checkin_em))),
-    CHECK (status <> 'Em andamento' OR checkin_em IS NOT NULL),
-    CHECK (status <> 'Finalizada' OR (checkin_em IS NOT NULL AND checkout_em IS NOT NULL))
+    CHECK (status != 'Em andamento' OR checkin_em IS NOT NULL),
+    CHECK (status != 'Finalizada' OR (checkin_em IS NOT NULL AND checkout_em IS NOT NULL))
 );
 
 CREATE TABLE pagamento (
@@ -212,15 +211,16 @@ CREATE TABLE ocorrencia (
     registrada_em TEXT NOT NULL
 );
 
--- CPF: formato numerico de 11 digitos, sem sequencias iguais,
--- e verificacao matematica de ambos os digitos verificadores.
+-- VERIFICAÇÕES -----------------------------------------------------------------------------------------------------------------------------
+
+-- verifica CPF tutor na insercao
 CREATE TRIGGER trg_cpf_tutor_insert
 BEFORE INSERT ON tutor
 WHEN NOT (
         length(NEW.id_tutor) = 11
         AND NEW.id_tutor NOT GLOB '*[^0-9]*'
-        AND NEW.id_tutor <> replace('00000000000', '0', substr(NEW.id_tutor, 1, 1))
-        AND CAST(substr(NEW.id_tutor, 10, 1) AS INTEGER) =
+        AND NEW.id_tutor != replace('00000000000', '0', substr(NEW.id_tutor, 1, 1)) -- se nao é uma sequencia de numeros iguais
+        AND CAST(substr(NEW.id_tutor, 10, 1) AS INTEGER) = -- faz a verificacao dos digitos
             CASE WHEN (((CAST(substr(NEW.id_tutor, 1, 1) AS INTEGER) * 10) + (CAST(substr(NEW.id_tutor, 2, 1) AS INTEGER) * 9) + (CAST(substr(NEW.id_tutor, 3, 1) AS INTEGER) * 8) + (CAST(substr(NEW.id_tutor, 4, 1) AS INTEGER) * 7) + (CAST(substr(NEW.id_tutor, 5, 1) AS INTEGER) * 6) + (CAST(substr(NEW.id_tutor, 6, 1) AS INTEGER) * 5) + (CAST(substr(NEW.id_tutor, 7, 1) AS INTEGER) * 4) + (CAST(substr(NEW.id_tutor, 8, 1) AS INTEGER) * 3) + (CAST(substr(NEW.id_tutor, 9, 1) AS INTEGER) * 2))) % 11 < 2 THEN 0 ELSE 11 - (((CAST(substr(NEW.id_tutor, 1, 1) AS INTEGER) * 10) + (CAST(substr(NEW.id_tutor, 2, 1) AS INTEGER) * 9) + (CAST(substr(NEW.id_tutor, 3, 1) AS INTEGER) * 8) + (CAST(substr(NEW.id_tutor, 4, 1) AS INTEGER) * 7) + (CAST(substr(NEW.id_tutor, 5, 1) AS INTEGER) * 6) + (CAST(substr(NEW.id_tutor, 6, 1) AS INTEGER) * 5) + (CAST(substr(NEW.id_tutor, 7, 1) AS INTEGER) * 4) + (CAST(substr(NEW.id_tutor, 8, 1) AS INTEGER) * 3) + (CAST(substr(NEW.id_tutor, 9, 1) AS INTEGER) * 2))) % 11 END
         AND CAST(substr(NEW.id_tutor, 11, 1) AS INTEGER) =
             CASE WHEN (((CAST(substr(NEW.id_tutor, 1, 1) AS INTEGER) * 11) + (CAST(substr(NEW.id_tutor, 2, 1) AS INTEGER) * 10) + (CAST(substr(NEW.id_tutor, 3, 1) AS INTEGER) * 9) + (CAST(substr(NEW.id_tutor, 4, 1) AS INTEGER) * 8) + (CAST(substr(NEW.id_tutor, 5, 1) AS INTEGER) * 7) + (CAST(substr(NEW.id_tutor, 6, 1) AS INTEGER) * 6) + (CAST(substr(NEW.id_tutor, 7, 1) AS INTEGER) * 5) + (CAST(substr(NEW.id_tutor, 8, 1) AS INTEGER) * 4) + (CAST(substr(NEW.id_tutor, 9, 1) AS INTEGER) * 3) + (CAST(substr(NEW.id_tutor, 10, 1) AS INTEGER) * 2))) % 11 < 2 THEN 0 ELSE 11 - (((CAST(substr(NEW.id_tutor, 1, 1) AS INTEGER) * 11) + (CAST(substr(NEW.id_tutor, 2, 1) AS INTEGER) * 10) + (CAST(substr(NEW.id_tutor, 3, 1) AS INTEGER) * 9) + (CAST(substr(NEW.id_tutor, 4, 1) AS INTEGER) * 8) + (CAST(substr(NEW.id_tutor, 5, 1) AS INTEGER) * 7) + (CAST(substr(NEW.id_tutor, 6, 1) AS INTEGER) * 6) + (CAST(substr(NEW.id_tutor, 7, 1) AS INTEGER) * 5) + (CAST(substr(NEW.id_tutor, 8, 1) AS INTEGER) * 4) + (CAST(substr(NEW.id_tutor, 9, 1) AS INTEGER) * 3) + (CAST(substr(NEW.id_tutor, 10, 1) AS INTEGER) * 2))) % 11 END
@@ -229,14 +229,13 @@ BEGIN
     SELECT RAISE(ABORT, 'CPF invalido em tutor');
 END;
 
--- CPF: formato numerico de 11 digitos, sem sequencias iguais,
--- e verificacao matematica de ambos os digitos verificadores.
+-- verifica CPF tutor na atualizacao
 CREATE TRIGGER trg_cpf_tutor_update
 BEFORE UPDATE OF id_tutor ON tutor
 WHEN NOT (
         length(NEW.id_tutor) = 11
         AND NEW.id_tutor NOT GLOB '*[^0-9]*'
-        AND NEW.id_tutor <> replace('00000000000', '0', substr(NEW.id_tutor, 1, 1))
+        AND NEW.id_tutor != replace('00000000000', '0', substr(NEW.id_tutor, 1, 1))
         AND CAST(substr(NEW.id_tutor, 10, 1) AS INTEGER) =
             CASE WHEN (((CAST(substr(NEW.id_tutor, 1, 1) AS INTEGER) * 10) + (CAST(substr(NEW.id_tutor, 2, 1) AS INTEGER) * 9) + (CAST(substr(NEW.id_tutor, 3, 1) AS INTEGER) * 8) + (CAST(substr(NEW.id_tutor, 4, 1) AS INTEGER) * 7) + (CAST(substr(NEW.id_tutor, 5, 1) AS INTEGER) * 6) + (CAST(substr(NEW.id_tutor, 6, 1) AS INTEGER) * 5) + (CAST(substr(NEW.id_tutor, 7, 1) AS INTEGER) * 4) + (CAST(substr(NEW.id_tutor, 8, 1) AS INTEGER) * 3) + (CAST(substr(NEW.id_tutor, 9, 1) AS INTEGER) * 2))) % 11 < 2 THEN 0 ELSE 11 - (((CAST(substr(NEW.id_tutor, 1, 1) AS INTEGER) * 10) + (CAST(substr(NEW.id_tutor, 2, 1) AS INTEGER) * 9) + (CAST(substr(NEW.id_tutor, 3, 1) AS INTEGER) * 8) + (CAST(substr(NEW.id_tutor, 4, 1) AS INTEGER) * 7) + (CAST(substr(NEW.id_tutor, 5, 1) AS INTEGER) * 6) + (CAST(substr(NEW.id_tutor, 6, 1) AS INTEGER) * 5) + (CAST(substr(NEW.id_tutor, 7, 1) AS INTEGER) * 4) + (CAST(substr(NEW.id_tutor, 8, 1) AS INTEGER) * 3) + (CAST(substr(NEW.id_tutor, 9, 1) AS INTEGER) * 2))) % 11 END
         AND CAST(substr(NEW.id_tutor, 11, 1) AS INTEGER) =
@@ -246,14 +245,13 @@ BEGIN
     SELECT RAISE(ABORT, 'CPF invalido em tutor');
 END;
 
--- CPF: formato numerico de 11 digitos, sem sequencias iguais,
--- e verificacao matematica de ambos os digitos verificadores.
+-- verifica CPF funcionario na insercao
 CREATE TRIGGER trg_cpf_funcionario_insert
 BEFORE INSERT ON funcionario
 WHEN NOT (
         length(NEW.id_funcionario) = 11
         AND NEW.id_funcionario NOT GLOB '*[^0-9]*'
-        AND NEW.id_funcionario <> replace('00000000000', '0', substr(NEW.id_funcionario, 1, 1))
+        AND NEW.id_funcionario != replace('00000000000', '0', substr(NEW.id_funcionario, 1, 1))
         AND CAST(substr(NEW.id_funcionario, 10, 1) AS INTEGER) =
             CASE WHEN (((CAST(substr(NEW.id_funcionario, 1, 1) AS INTEGER) * 10) + (CAST(substr(NEW.id_funcionario, 2, 1) AS INTEGER) * 9) + (CAST(substr(NEW.id_funcionario, 3, 1) AS INTEGER) * 8) + (CAST(substr(NEW.id_funcionario, 4, 1) AS INTEGER) * 7) + (CAST(substr(NEW.id_funcionario, 5, 1) AS INTEGER) * 6) + (CAST(substr(NEW.id_funcionario, 6, 1) AS INTEGER) * 5) + (CAST(substr(NEW.id_funcionario, 7, 1) AS INTEGER) * 4) + (CAST(substr(NEW.id_funcionario, 8, 1) AS INTEGER) * 3) + (CAST(substr(NEW.id_funcionario, 9, 1) AS INTEGER) * 2))) % 11 < 2 THEN 0 ELSE 11 - (((CAST(substr(NEW.id_funcionario, 1, 1) AS INTEGER) * 10) + (CAST(substr(NEW.id_funcionario, 2, 1) AS INTEGER) * 9) + (CAST(substr(NEW.id_funcionario, 3, 1) AS INTEGER) * 8) + (CAST(substr(NEW.id_funcionario, 4, 1) AS INTEGER) * 7) + (CAST(substr(NEW.id_funcionario, 5, 1) AS INTEGER) * 6) + (CAST(substr(NEW.id_funcionario, 6, 1) AS INTEGER) * 5) + (CAST(substr(NEW.id_funcionario, 7, 1) AS INTEGER) * 4) + (CAST(substr(NEW.id_funcionario, 8, 1) AS INTEGER) * 3) + (CAST(substr(NEW.id_funcionario, 9, 1) AS INTEGER) * 2))) % 11 END
         AND CAST(substr(NEW.id_funcionario, 11, 1) AS INTEGER) =
@@ -263,14 +261,13 @@ BEGIN
     SELECT RAISE(ABORT, 'CPF invalido em funcionario');
 END;
 
--- CPF: formato numerico de 11 digitos, sem sequencias iguais,
--- e verificacao matematica de ambos os digitos verificadores.
+-- verifica CPF funcionario na atualizacao
 CREATE TRIGGER trg_cpf_funcionario_update
 BEFORE UPDATE OF id_funcionario ON funcionario
 WHEN NOT (
         length(NEW.id_funcionario) = 11
         AND NEW.id_funcionario NOT GLOB '*[^0-9]*'
-        AND NEW.id_funcionario <> replace('00000000000', '0', substr(NEW.id_funcionario, 1, 1))
+        AND NEW.id_funcionario != replace('00000000000', '0', substr(NEW.id_funcionario, 1, 1))
         AND CAST(substr(NEW.id_funcionario, 10, 1) AS INTEGER) =
             CASE WHEN (((CAST(substr(NEW.id_funcionario, 1, 1) AS INTEGER) * 10) + (CAST(substr(NEW.id_funcionario, 2, 1) AS INTEGER) * 9) + (CAST(substr(NEW.id_funcionario, 3, 1) AS INTEGER) * 8) + (CAST(substr(NEW.id_funcionario, 4, 1) AS INTEGER) * 7) + (CAST(substr(NEW.id_funcionario, 5, 1) AS INTEGER) * 6) + (CAST(substr(NEW.id_funcionario, 6, 1) AS INTEGER) * 5) + (CAST(substr(NEW.id_funcionario, 7, 1) AS INTEGER) * 4) + (CAST(substr(NEW.id_funcionario, 8, 1) AS INTEGER) * 3) + (CAST(substr(NEW.id_funcionario, 9, 1) AS INTEGER) * 2))) % 11 < 2 THEN 0 ELSE 11 - (((CAST(substr(NEW.id_funcionario, 1, 1) AS INTEGER) * 10) + (CAST(substr(NEW.id_funcionario, 2, 1) AS INTEGER) * 9) + (CAST(substr(NEW.id_funcionario, 3, 1) AS INTEGER) * 8) + (CAST(substr(NEW.id_funcionario, 4, 1) AS INTEGER) * 7) + (CAST(substr(NEW.id_funcionario, 5, 1) AS INTEGER) * 6) + (CAST(substr(NEW.id_funcionario, 6, 1) AS INTEGER) * 5) + (CAST(substr(NEW.id_funcionario, 7, 1) AS INTEGER) * 4) + (CAST(substr(NEW.id_funcionario, 8, 1) AS INTEGER) * 3) + (CAST(substr(NEW.id_funcionario, 9, 1) AS INTEGER) * 2))) % 11 END
         AND CAST(substr(NEW.id_funcionario, 11, 1) AS INTEGER) =
@@ -280,8 +277,10 @@ BEGIN
     SELECT RAISE(ABORT, 'CPF invalido em funcionario');
 END;
 
--- O veterinario deve executar a vacinacao e o tipo deve corresponder
--- a especie do pet vinculado a caderneta. Verifica INSERT e UPDATE.
+
+-- quem aplica a vacina deve ser um veterinario
+-- a vacina tem que estar correta para a especie
+-- a caderneta deve existir
 CREATE TRIGGER trg_vacinacao_validar_insert
 BEFORE INSERT ON vacinacao
 WHEN NOT EXISTS (
@@ -292,12 +291,13 @@ WHEN NOT EXISTS (
     JOIN pet p ON p.id_pet = c.id_pet
     JOIN lote_vacina lv ON lv.id_lote_vacina = NEW.id_lote_vacina
     JOIN tipo_vacina tv ON tv.id_tipo_vacina = lv.id_tipo_vacina
-    WHERE c.id_caderneta = NEW.id_caderneta AND tv.id_especie = p.id_especie
+    WHERE c.id_caderneta = NEW.id_caderneta AND tv.id_especie = p.id_especie -- se a caderneta existe e se a vacina é compatiel com a especie
 )
 BEGIN
     SELECT RAISE(ABORT, 'Vacinacao exige veterinario e vacina compativel com especie');
 END;
 
+-- mesma coisa, mas para atualizacao
 CREATE TRIGGER trg_vacinacao_validar_update
 BEFORE UPDATE OF id_funcionario, id_caderneta, id_lote_vacina ON vacinacao
 WHEN NOT EXISTS (
@@ -314,91 +314,47 @@ BEGIN
     SELECT RAISE(ABORT, 'Vacinacao exige veterinario e vacina compativel com especie');
 END;
 
--- Evita mudar o cargo de veterinario com vacinacoes ja registradas.
-CREATE TRIGGER trg_funcionario_preservar_veterinario
-BEFORE UPDATE OF cargo ON funcionario
-WHEN OLD.cargo = 'veterinario' AND NEW.cargo <> 'veterinario'
-     AND EXISTS (SELECT 1 FROM vacinacao WHERE id_funcionario=OLD.id_funcionario)
-BEGIN
-    SELECT RAISE(ABORT, 'Funcionario possui vacinacoes registradas como veterinario');
-END;
 
--- INDICES PARA CONSULTAS FREQUENTES
-CREATE INDEX ix_pet_especie ON pet(id_especie);
-CREATE INDEX ix_reserva_quarto_datas ON reserva(id_quarto,data_inicio,data_fim_prevista,status);
-CREATE INDEX ix_reserva_pet ON reserva(id_pet);
-CREATE INDEX ix_servico_reserva_reserva ON servico_reserva(id_reserva);
-CREATE INDEX ix_pagamento_reserva ON pagamento(id_reserva);
-CREATE INDEX ix_vacinacao_caderneta ON vacinacao(id_caderneta);
-CREATE INDEX ix_medicacao_pet_pet ON medicacao_pet(id_pet);
-CREATE INDEX ix_execucao_servico ON execucao_servico(id_servico_reserva);
-
--- Quarto individual: intervalos [inicio, fim). Saida em 10/11 permite
--- entrada de outro pet em 10/11.
+-- todos os quartos sao individuais, os intervalos: [inicio, fim)
 CREATE TRIGGER trg_reserva_sem_sobreposicao_insert BEFORE INSERT ON reserva
-WHEN NEW.status <> 'Cancelada' AND EXISTS (
+WHEN NEW.status != 'Cancelada' AND EXISTS (
     SELECT 1 FROM reserva r WHERE r.id_quarto = NEW.id_quarto
-      AND r.status <> 'Cancelada'
+      AND r.status != 'Cancelada'
       AND NEW.data_inicio < r.data_fim_prevista
       AND r.data_inicio < NEW.data_fim_prevista
 )
-BEGIN SELECT RAISE(ABORT, 'Quarto ocupado no periodo informado'); END;
+BEGIN SELECT RAISE(ABORT, 'Quarto ocupado'); END;
 
 CREATE TRIGGER trg_reserva_sem_sobreposicao_update
 BEFORE UPDATE OF id_quarto,data_inicio,data_fim_prevista,status ON reserva
-WHEN NEW.status <> 'Cancelada' AND EXISTS (
-    SELECT 1 FROM reserva r WHERE r.id_reserva <> OLD.id_reserva
-      AND r.id_quarto = NEW.id_quarto AND r.status <> 'Cancelada'
+WHEN NEW.status != 'Cancelada' AND EXISTS (
+    SELECT 1 FROM reserva r WHERE r.id_reserva != OLD.id_reserva
+      AND r.id_quarto = NEW.id_quarto AND r.status != 'Cancelada'
       AND NEW.data_inicio < r.data_fim_prevista
       AND r.data_inicio < NEW.data_fim_prevista
 )
-BEGIN SELECT RAISE(ABORT, 'Quarto ocupado no periodo informado'); END;
+BEGIN SELECT RAISE(ABORT, 'Quarto ocupado'); END;
 
--- Nao permite que um pet tenha duas reservas ativas em quartos diferentes
--- ao mesmo tempo, mesmo que os dois quartos estejam livres.
+
+-- nao deixa o pet ter 2 reservas ao mesmo tempo
 CREATE TRIGGER trg_reserva_pet_sem_sobreposicao_insert BEFORE INSERT ON reserva
-WHEN NEW.status <> 'Cancelada' AND EXISTS (
-    SELECT 1 FROM reserva r WHERE r.id_pet=NEW.id_pet AND r.status<>'Cancelada'
+WHEN NEW.status != 'Cancelada' AND EXISTS (
+    SELECT 1 FROM reserva r WHERE r.id_pet=NEW.id_pet AND r.status!='Cancelada'
       AND NEW.data_inicio<r.data_fim_prevista AND r.data_inicio<NEW.data_fim_prevista
 )
 BEGIN SELECT RAISE(ABORT, 'Pet ja possui reserva no periodo'); END;
 
 CREATE TRIGGER trg_reserva_pet_sem_sobreposicao_update
 BEFORE UPDATE OF data_inicio,data_fim_prevista,status ON reserva
-WHEN NEW.status <> 'Cancelada' AND EXISTS (
-    SELECT 1 FROM reserva r WHERE r.id_reserva<>OLD.id_reserva AND r.id_pet=NEW.id_pet
-      AND r.status<>'Cancelada' AND NEW.data_inicio<r.data_fim_prevista
+WHEN NEW.status != 'Cancelada' AND EXISTS (
+    SELECT 1 FROM reserva r WHERE r.id_reserva!=OLD.id_reserva AND r.id_pet=NEW.id_pet
+      AND r.status!='Cancelada' AND NEW.data_inicio<r.data_fim_prevista
       AND r.data_inicio<NEW.data_fim_prevista
 )
 BEGIN SELECT RAISE(ABORT, 'Pet ja possui reserva no periodo'); END;
 
--- Tutor do pagamento deve estar vinculado ao pet da reserva.
-CREATE TRIGGER trg_pagamento_tutor_insert BEFORE INSERT ON pagamento
-WHEN NOT EXISTS (
-    SELECT 1 FROM reserva r JOIN tutor_pet tp ON tp.id_pet = r.id_pet
-    WHERE r.id_reserva = NEW.id_reserva AND tp.id_tutor = NEW.id_tutor
-)
-BEGIN SELECT RAISE(ABORT, 'Tutor nao vinculado ao pet desta reserva'); END;
 
-CREATE TRIGGER trg_pagamento_tutor_update
-BEFORE UPDATE OF id_tutor,id_reserva ON pagamento
-WHEN NOT EXISTS (
-    SELECT 1 FROM reserva r JOIN tutor_pet tp ON tp.id_pet = r.id_pet
-    WHERE r.id_reserva = NEW.id_reserva AND tp.id_tutor = NEW.id_tutor
-)
-BEGIN SELECT RAISE(ABORT, 'Tutor nao vinculado ao pet desta reserva'); END;
-
--- Tutor deve existir antes de reservar. O cadastro de pet e tutor_pet
--- acontece em INSERTs separados, por isso nao e exigido no INSERT de pet.
-CREATE TRIGGER trg_reserva_pet_tutor BEFORE INSERT ON reserva
-WHEN NOT EXISTS (SELECT 1 FROM tutor_pet WHERE id_pet = NEW.id_pet)
-BEGIN SELECT RAISE(ABORT, 'Pet precisa ter pelo menos um tutor'); END;
-
-CREATE TRIGGER trg_tutor_pet_nao_remover_ultimo BEFORE DELETE ON tutor_pet
-WHEN (SELECT COUNT(*) FROM tutor_pet WHERE id_pet = OLD.id_pet) = 1
-BEGIN SELECT RAISE(ABORT, 'Nao e permitido retirar o ultimo tutor de um pet'); END;
-
--- Impede adicionar servicos a reservas canceladas/finalizadas.
+-- proibe adicionar servicos em reservas canceladas ou finalizadas.
 CREATE TRIGGER trg_servico_reserva_valida_insert BEFORE INSERT ON servico_reserva
 WHEN EXISTS (SELECT 1 FROM reserva WHERE id_reserva=NEW.id_reserva
              AND status IN ('Cancelada','Finalizada'))
@@ -418,27 +374,8 @@ WHEN EXISTS (
 )
 BEGIN SELECT RAISE(ABORT, 'Nao executar servico cancelado ou de reserva encerrada'); END;
 
--- Medicao da dose deve pertencer ao mesmo pet da reserva, e estar vigente.
-CREATE TRIGGER trg_administracao_mesmo_pet_insert BEFORE INSERT ON administracao_medicamento
-WHEN NOT EXISTS (
-    SELECT 1 FROM medicacao_pet m JOIN reserva r ON r.id_pet=m.id_pet
-    WHERE m.id_medicacao_pet=NEW.id_medicacao_pet AND r.id_reserva=NEW.id_reserva
-      AND date(NEW.administrada_em)>=m.inicio
-      AND (m.fim IS NULL OR date(NEW.administrada_em)<=m.fim)
-)
-BEGIN SELECT RAISE(ABORT, 'Medicacao nao pertence ao pet da reserva ou fora da vigencia'); END;
 
-CREATE TRIGGER trg_administracao_mesmo_pet_update
-BEFORE UPDATE OF id_medicacao_pet,id_reserva,administrada_em ON administracao_medicamento
-WHEN NOT EXISTS (
-    SELECT 1 FROM medicacao_pet m JOIN reserva r ON r.id_pet=m.id_pet
-    WHERE m.id_medicacao_pet=NEW.id_medicacao_pet AND r.id_reserva=NEW.id_reserva
-      AND date(NEW.administrada_em)>=m.inicio
-      AND (m.fim IS NULL OR date(NEW.administrada_em)<=m.fim)
-)
-BEGIN SELECT RAISE(ABORT, 'Medicacao nao pertence ao pet da reserva ou fora da vigencia'); END;
-
--- Check-in: exige validade de todas as vacinas obrigatorias da especie.
+-- compara as vacinas obrigatorias antes do checkin. se o pet nao tem as vacinas, ele nao pode se hospedar.
 CREATE TRIGGER trg_checkin_vacinas_insert BEFORE INSERT ON reserva
 WHEN NEW.checkin_em IS NOT NULL
   AND EXISTS (
@@ -454,9 +391,8 @@ WHEN NEW.checkin_em IS NOT NULL
           AND v.validade_ate >= date(NEW.checkin_em)
       )
   )
-BEGIN SELECT RAISE(ABORT, 'Vacinas obrigatorias ausentes ou vencidas'); END;
+BEGIN SELECT RAISE(ABORT, 'Vacinas obrigatorias faltando'); END;
 
--- Check-in: exige validade de todas as vacinas obrigatorias da especie.
 CREATE TRIGGER trg_checkin_vacinas_update BEFORE UPDATE OF checkin_em ON reserva
 WHEN NEW.checkin_em IS NOT NULL
   AND EXISTS (
@@ -474,14 +410,37 @@ WHEN NEW.checkin_em IS NOT NULL
   )
 BEGIN SELECT RAISE(ABORT, 'Vacinas obrigatorias ausentes ou vencidas'); END;
 
--- Nao altera o pet apos a criacao da reserva.
-CREATE TRIGGER trg_reserva_pet_inalteravel BEFORE UPDATE OF id_pet ON reserva
-WHEN NEW.id_pet <> OLD.id_pet
-BEGIN SELECT RAISE(ABORT, 'Nao e permitido alterar o pet da reserva'); END;
 
--- VALOR FINAL (dinamico): diarias * diaria contratada + servicos nao cancelados.
--- Pagamentos confirmados reduzem somente o saldo pendente.
--- Saida em 12/11 com inicio em 10/11 = 2 diarias.
+-- proibe a alteracao do pet na reserva
+CREATE TRIGGER trg_reserva_pet_inalteravel BEFORE UPDATE OF id_pet ON reserva
+WHEN NEW.id_pet != OLD.id_pet
+BEGIN SELECT RAISE(ABORT, 'Proibido alterar o pet da reserva'); END;
+
+
+-- cuida para que o pet certo receba a medicacao correta
+CREATE TRIGGER trg_administracao_mesmo_pet_insert
+BEFORE INSERT ON administracao_medicamento
+WHEN NOT EXISTS (
+    SELECT 1
+    FROM medicacao_pet m
+    JOIN reserva r ON r.id_pet = m.id_pet
+    WHERE m.id_medicacao_pet = NEW.id_medicacao_pet
+      AND r.id_reserva = NEW.id_reserva
+      AND date(NEW.administrada_em) >= m.inicio
+      AND (
+          m.fim IS NULL
+          OR date(NEW.administrada_em) <= m.fim
+      )
+)
+BEGIN
+    SELECT RAISE(
+        ABORT,
+        'Medicacao invalida para o pet ou periodo'
+    );
+END;
+
+
+-- valores com os servicos
 CREATE VIEW vw_resumo_financeiro_reserva AS
 WITH totais AS (
     SELECT r.id_reserva, r.id_pet, r.id_quarto, r.status,
@@ -490,7 +449,7 @@ WITH totais AS (
            ROUND((julianday(r.data_fim_prevista)-julianday(r.data_inicio)) * r.valor_diaria_contratada, 2) AS total_hospedagem,
            ROUND(COALESCE((SELECT SUM(sr.quantidade*sr.preco_unitario)
                            FROM servico_reserva sr WHERE sr.id_reserva=r.id_reserva
-                             AND sr.status <> 'Cancelado'), 0), 2) AS total_servicos,
+                             AND sr.status != 'Cancelado'), 0), 2) AS total_servicos,
            ROUND(COALESCE((SELECT SUM(p.valor_pago)
                            FROM pagamento p WHERE p.id_reserva=r.id_reserva
                              AND p.status='Confirmado'), 0), 2) AS total_pago
